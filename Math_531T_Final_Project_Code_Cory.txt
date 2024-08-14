@@ -1,0 +1,11 @@
+#Neural Network Autoregressive Forecasting (30 lags, can change the number of predicted lags)
+
+neuralnet_energy = nnetar(diff_garch_series4, lambda = 0)
+autoplot(forecast(neuralnet_energy, h=30))
+
+summary(neuralnet_energy)
+
+#Prediction intervals for neural network AR forecast.
+
+fcast_nnar = forecast(neuralnet_energy, PI = T, h=30)
+autoplot(fcast_nnar)
