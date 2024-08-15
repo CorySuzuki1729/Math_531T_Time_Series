@@ -1,0 +1,215 @@
+---
+title: "Math531T_Exam3_Suzuki"
+author: "Cory Suzuki"
+date: "2024-06-13"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(forecast)
+library(tseries)
+library(MTS)
+library(astsa)
+```
+Problem 2
+```{r}
+n = 100
+arma11 = arima.sim(n = 100, list(ar=0.6, ma=0.9))
+arma11_fit = arima(arma11, order = c(1,0,1))
+
+ts.plot(arma11, main = "ARMA(1,1) Model")
+arma11_fitted = arma11 - residuals(arma11_fit)
+points(arma11_fitted, type = "l", col = 2, lty = 2)
+
+acf(arma11, main = "ARMA(1,1) ACF")
+pacf(arma11, main = "ARMA(1,1) PACF")
+plot(ARMAacf(arma11), main = "Theoretical ACF ARMA(1,1)")
+plot(ARMAacf(arma11, pacf = T), main = "Theoretical PACF ARMA(1,1)")
+```
+The results for the ARMA(1,1) model are consistent with that provided in table 3.1 from the textbook as the ACF and PACF plots show that the points tail off. Other than a few points in the PACF tailing off, the theoretical ACF and PACF are matching with the behavior of the points in the sample ACF and PACF's.
+
+```{r}
+n = 100
+arma10 = arima.sim(n = 100, list(ar=0.6, ma=0))
+arma10_fit = arima(arma10, order = c(1,0,0))
+
+ts.plot(arma10, main = "ARMA(1,0) Model")
+arma10_fitted = arma10 - residuals(arma10_fit)
+points(arma10_fitted, type = "l", col = 3, lty = 2)
+
+acf(arma10, main = "ARMA(1,0) ACF")
+pacf(arma10, main = "ARMA(1,0) PACF")
+plot(ARMAacf(arma10), main = "Theoretical ACF ARMA(1,0)")
+plot(ARMAacf(arma10, pacf = T), main = "Theoretical PACF ARMA(1,0)")
+```
+Table 3.1 is also consistent here as the ACF once again tails off and the PACF is cut after the first lag. The sample ACF and sample PACF are also consistent in behavior to the theoretical plots, one thing to note is that the theoretical ACF begins to fan out, which is best described by the wave between lags 5 and 15.
+
+```{r}
+n = 100
+arma01 = arima.sim(n = 100, list(ar=0, ma=0.9))
+arma01_fit = arima(arma01, order = c(0,0,1))
+
+ts.plot(arma01, main = "ARMA(0,1) Model")
+arma01_fitted = arma01 - residuals(arma01_fit)
+points(arma01_fitted, type = "l", col = 4, lty = 2)
+
+acf(arma01, main = "ARMA(0,1) ACF")
+pacf(arma01, main = "ARMA(0,1) PACF")
+plot(ARMAacf(arma01), main = "Theoretical ACF ARMA(0,1)")
+plot(ARMAacf(arma01, pacf = T), main = "Theoretical PACF ARMA(0,1)")
+```
+Table 3.1 is also consistent again with the results of the plots since the ACF is cut off by lag 2 and approaches zero with some periodic waves alternating between 0, which is consistent with the theoretical ACF. The PACF also tails off, and the points from the theoretical PACF also trail off to zero.
+
+Problem 3
+```{r}
+data(cmort)
+ar2_ols = ar.ols(cmort, order = 2, demean = F, intercept = T)
+print(ar2_ols$x.intercept)
+ts.plot(cmort, main = "AR(2) Plot with Intercept")
+ar2_fit_cmort = cmort - residuals(ar2_ols)
+points(ar2_fit_cmort, type = "l", col = 2, lty = 2)
+
+arima2_mle = arima(cmort, order = c(2,0,0))
+summary(arima2_mle)
+ts.plot(cmort, main = "ARIMA(2,0,0) Plot with Intercept")
+arima2_cmort_fit = cmort - residuals(arima2_mle)
+points(arima2_cmort_fit, type = "l", col = 3, lty = 2)
+```
+We notice that the intercept for the ar.ols function of order 2 is 11.45061 while the arima(2,0,0) intercept is reported to be 88.8538. The intercepts are different since ar.ols uses the ordinary least squares algorithm in order to estimate model parameters while the arima function uses maximum likelihod estimation to estimate model parameters, and hence why the intercept estimates are different even though we are using an AR(2) for both methods.
+
+Problem 4
+```{r}
+demand_data = read_table("C://Users/coryg/Downloads/Demand-2.txt", col_names = F)
+
+demand_data_train = demand_data[1:264,]
+demand_data_test = demand_data[265:288,]
+#print(demand_data_train)
+#print(demand_data_test)
+
+myts_demand = ts(demand_data_train, start=c(1992,1), frequency = 12)
+plot(myts_demand, main = "Customer Demand", xlab = "Years", ylab = "Monthly Number of Customers")
+
+myts_demand_test = ts(demand_data_test, start = c(2014,1), frequency = 12)
+
+
+acf(myts_demand, main = "ACF of raw demand data", lag.max = 70)
+print(kpss.test(myts_demand, null = "Trend"))
+
+print(archTest(myts_demand, lag=20))
+
+best_lambda = BoxCox.lambda(myts_demand)
+best_lambda
+```
+From the above ARCH Test, the reported p-value is zero which is less than the 0.05 significance level. Hence we reject the null hypothesis and we have enough evidence to conclude that the variance is constant. As a "sanity check", we also use the Box-Cox transformation algorithm to see what the best lambda value for the power of the model, which is reported to be about 0.94. This value is extremely close to 1, hence we are convinced that the variance of the data is constant and that no variance stabilization transformations are necessary.
+
+From the ACF plot of the original demand time series data, we observe that the data is not stationary, hence we need to employ decomposition techniques such as differencing in order to make the data stationary prior to data partitioning, model fitting, and forecasting predictions.
+
+```{r}
+demand_decomp = decompose(myts_demand, type = c("additive", "multiplicative"))
+plot(demand_decomp)
+
+diff1_demand = diff(log(myts_demand), differences = 1)
+plot(diff1_demand, main = "First Difference")
+acf(diff1_demand, main = "ACF of First Difference", lag.max = 20)
+pacf(diff1_demand, main = "PACF of First Difference", lag.max = 20)
+
+diff2_demand = diff(log(myts_demand), differences = 2)
+plot(diff2_demand, main = "Second Difference")
+acf(diff2_demand, main = "ACF of Second Difference", lag.max = 20)
+pacf(diff2_demand, main = "PACF of Second Difference", lag.max = 20)
+
+diff3_demand = diff(log(myts_demand), differences = 3)
+plot(diff3_demand, main = "Third Difference")
+acf(diff3_demand, main = "ACF of Third Difference", lag.max = 20)
+pacf(diff3_demand, main = "PACF of Third Difference", lag.max = 20)
+
+kpss.test(diff2_demand, null = "Trend")
+kpss.test(diff3_demand, null = "Trend")
+
+plot(acf(na.omit(demand_decomp$random)), main = "ACF Plot of the Residuals")
+```
+
+By the above KPSS test for stationarity, since the p-value reported is 0.1 which is greater than the 0.05 significance level, we fail to reject the null hypothesis and we have enough evidence to conclude that the second differencing of the demand data is now stationary as opposed to our original KPSS test on the undifferenced demand data. The above decomposition of the time series corroborates with the EDA observations as described before. We confirm that the time series follows a general trend that is slightly bell-shaped where the series increases sharply and steadily decreases after the middle peak. There is also visual evidence of constant seasonality that is rapidly periodic as there are a significant number of spike occurrences in each repetitive period between each year, which is every 12 months with respect to the context of the data. The ACF of the residuals/random component have been displayed as well to indicate a lack of stationarity.
+
+Our potential s value is 12 since the seasonality indicates that the data's periodic nature follows each year annually, which is equivalent to 12 months. This follows from the decomposition of the time series. The possible values for p,d, and q are 0,1, and 2 since there are spikes in our ACF at lags 0,1, and 2 where there are sharp drops in autocorrelation. The possible values for P,D, and Q are 0,1,2 according to the spikes present in the PACF plot and how they drop to zero in between periodic lags. We will now confirm these parameter values by using the auto.arima function in R and fit them to the training data.
+
+```{r}
+potential_vals = auto.arima(diff2_demand, stationary = T, seasonal = T, trace = T)
+potential_vals
+#print(potential_vals)
+
+demand_sarima1 = arima(diff2_demand, seasonal = list(order = c(2,0,0), period = 12), order = c(0,0,2))
+summary(demand_sarima1)
+
+demand_sarima2 = arima(diff2_demand, seasonal = list(order = c(0,0,1), period = 12), order = c(2,0,1))
+summary(demand_sarima2)
+
+demand_sarima3 = arima(diff2_demand, seasonal = list(order = c(0,0,2), period = 12), order = c(1,0,0))
+summary(demand_sarima3)
+
+#Residual analysis
+
+#Model 1
+residual_mod1 = demand_sarima1$residuals
+par(mfrow=c(1,3))
+plot(residual_mod1, main = "SARIMA(0,0,2)(2,0,0)[12]")
+abline(h=0, lty=2)
+acf(residual_mod1, lag.max = 20)
+qqnorm(residual_mod1)
+qqline(residual_mod1)
+
+#Model 2
+residual_mod2 = demand_sarima2$residuals
+par(mfrow=c(1,3))
+plot(residual_mod2, main = "SARIMA(0,0,1)(2,0,1)[12]")
+abline(h=0, lty = 2)
+acf(residual_mod2, lag.max = 20)
+qqnorm(residual_mod2)
+qqline(residual_mod2)
+
+#Model 3
+residual_mod3 = demand_sarima3$residuals
+par(mfrow=c(1,3))
+plot(residual_mod3, main = "SARIMA(0,0,2)(1,0,0)[12]")
+abline(h=0, lty = 2)
+acf(residual_mod3, lag.max = 20)
+qqnorm(residual_mod3)
+qqline(residual_mod3)
+```
+After using auto.arima, our visual inspections turned to be correct as the models that were algorithmically used had either 0,1, or 2 for the p,d,q,P,D, and Q values. The best model returned was SARIMA(0,0,2)(2,0,0)[12]. We fitted this model along with two other best models of our choice and saw SARIMA(0,0,2)(2,0,0)[12] is the best by using different metrics including AIC and AIC_c, which were the lowest compared to the other two; the reported AIC of the best model is -1084.19 and the AIC_c is -1083.95. 
+
+According to the residual plots in our analysis, we notice that the ACF of the residuals for the SARIMA(0,0,2)(2,0,0)[12] model is more stationary than the other two models. The QQplot for the best model shows that the residuals follow the abline well with the exception that the residuals tend to deviate far above the line on the right hand side of the plot, but not deviating as far as the other two model residual plots. In the next code chunk, we now forecast our model on the test data.
+
+```{r}
+
+demand_sarima4 = arima(myts_demand, seasonal = list(order = c(2,0,0), period = 12), order = c(0,0,2))
+
+
+demand_sarima5 = arima(myts_demand, seasonal = list(order = c(0,0,1), period = 12), order = c(2,0,1))
+
+
+demand_sarima6 = arima(myts_demand, seasonal = list(order = c(0,0,2), period = 12), order = c(1,0,0))
+
+predict_mod1 = forecast(demand_sarima4, h=24, level = 0.95)
+predict_mod2 = forecast(demand_sarima5, h=24, level = 0.95)
+predict_mod3 = forecast(demand_sarima6, h=24, level = 0.95)
+
+plot(predict_mod1)
+points(myts_demand_test, col = 2, lty = 2, type = "l")
+
+plot(predict_mod2)
+points(myts_demand_test, col = 3, lty = 2, type = "l")
+
+plot(predict_mod3)
+points(myts_demand_test, col = 4, lty = 2, type = "l")
+
+```
+After forecasting, it turns out that the SARIMA(1,0,0)(0,0,2)[12] visually performed better since there's less space in between the predicted forecast line and the test data. Due to these top three models having the best AIC and AIC_c, along with passing the visual residual analysis, I would recommend that the firm utilizes the SARIMA(1,0,0)(0,0,2)[12] model.

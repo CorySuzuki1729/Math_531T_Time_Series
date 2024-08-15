@@ -1,0 +1,98 @@
+---
+title: "Math_531T_Exam2_Suzuki"
+author: "Cory Suzuki"
+date: "2024-06-07"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readr)
+library(forecast)
+library(tseries)
+```
+
+```{r}
+rot_data = read_csv("C://Users/coryg/Downloads/Population-1.csv", col_names = TRUE)
+
+#print(rot_data)
+
+myts_rot = ts(rot_data$pop, start = c(2010,1), frequency = 12)
+plot(myts_rot, main = 'Rotifer Population Time Series', xlab = 'time in years', ylab = 'Population')
+```
+
+```{r}
+rot_decomp = decompose(myts_rot, type = c("additive"))
+plot(rot_decomp)
+
+acf(myts_rot, main = "Original ACF of Rotifer Data")
+
+kpss_test_stationary = kpss.test(myts_rot, null = "Trend")
+kpss_test_stationary
+
+acf(na.omit(rot_decomp$random), main = "ACF of Rotifer Data Residuals")
+
+diff_rot1 = diff(myts_rot, differences = 1)
+plot(diff_rot1, main = "First Difference")
+acf(diff_rot1, main = "ACF of First Differenced Rotifer Data")
+
+diff_rot2 = diff(myts_rot, differences = 2)
+plot(diff_rot2, main = "Second Difference")
+acf(diff_rot2, main = "ACF of Second Differenced Rotifer Data")
+
+diff_rot3 = diff(myts_rot, differences = 3)
+plot(diff_rot3, main = "Third Difference")
+acf(diff_rot3, main = "ACF of Third Differenced Rotifer Data")
+
+kpss_stationary2 = kpss.test(diff_rot3, null = "Trend")
+kpss_stationary2
+
+```
+
+```{r}
+arma1_rot = arima(diff_rot3, order = c(1,0,1))
+summary(arma1_rot)
+
+ts.plot(diff_rot3, main = "ARMA(1,0,1)")
+arma1_fit = diff_rot3 - residuals(arma1_rot)
+points(arma1_fit, type = "l", col = 2, lty = 2)
+```
+
+```{r}
+arma2_rot = arima(diff_rot3, order = c(2,0,0))
+summary(arma2_rot)
+
+ts.plot(diff_rot3, main = "ARMA(2,0,0)")
+arma2_fit = diff_rot3 - residuals(arma2_rot)
+points(arma2_fit, type = "l", col = 3, lty = 2)
+```
+
+```{r}
+arma3_rot = arima(diff_rot3, order = c(0,0,2))
+summary(arma3_rot)
+
+ts.plot(diff_rot3, main = "ARMA(0,0,2)")
+arma3_fit = diff_rot3 - residuals(arma3_rot)
+points(arma3_fit, type = "l", col = 4, lty = 2)
+```
+
+```{r}
+arma4_rot = arima(diff_rot3, order = c(2,0,1))
+summary(arma4_rot)
+
+ts.plot(diff_rot3, main = "ARMA(2,0,1)")
+arma4_fit = diff_rot3 - residuals(arma4_rot)
+points(arma4_fit, type = "l", col = 5, lty = 2)
+```
+
+```{r}
+arma5_rot = arima(diff_rot3, order = c(2,0,2))
+summary(arma5_rot)
+
+ts.plot(diff_rot3, main = "ARMA(2,0,2)")
+arma5_fit = diff_rot3 - residuals(arma5_rot)
+points(arma5_fit, type = "l", col = 7, lty = 2)
+```

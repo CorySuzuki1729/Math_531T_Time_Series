@@ -1,0 +1,27 @@
+---
+title: "Math531T_ARIMA_lec"
+author: "Cory Suzuki"
+date: "2024-06-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(forecast)
+library(tseries)
+```
+
+```{r}
+Xt = arima.sim(n=500, list(ar=c(0.8)))
+time = seq(0, 10, length=500)
+Xt = Xt + (2*time)
+plot(Xt)
+
+mod = auto.arima(Xt, trace = T)
+mod = Arima(Xt, order = c(1,1,0))
+mod
+```

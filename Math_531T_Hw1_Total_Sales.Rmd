@@ -1,0 +1,91 @@
+---
+title: "Math_531T_Hw1_Total_Sales"
+author: "Cory Suzuki"
+date: "2024-06-01"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this chunk, we load the appropriate R packages prior to conducting the data analysis.
+```{r}
+library(readr)
+library(ModelMetrics)
+```
+
+This is where we read in the text file and data. For our EDA, we convert the column in the dataset into a time series object first using the ts() function and set it to start the time from 1995 all the way to 2025 in quarterly intervals. 
+
+The plot of the log of the time series sales data is visually increasing in the positive direction analagous to that of a positively-correlated simple linear regression line, however the obvious difference here is that we are dealing with time series data that regresses itself every quarterly period. Hence we can conclude that this data tends to have a positive trend. 
+
+To detect stationarity of the raw data in the EDA portion of the analysis, we observe the ACF plot of the data. It can be seen that as the number of lags increase, the ACF's tend to approach 0 at a slow rate, hence we know that the raw data without any fitted models is not stationary. 
+```{r}
+sales_data = read_table("C://Users/coryg/Downloads/TotalSales-2.txt", col_names = FALSE)
+#print(sales_data)
+
+myts_sales = ts(sales_data, start = c(1995, 1), frequency = 4)
+plot(myts_sales, xlab = "Years", ylab = "Sales in Thousands of Dollars")
+
+acf(myts_sales)
+
+plot(log(myts_sales), xlab = "Years", ylab = "Sales in Thousands of Dollars", main = 'EDA')
+
+```
+To solve this problem of non-stationarity, one method covered in class is to use polynomial regression in the time series sense. Prior to fitting the model, we initialize the time predictor and month predictor and use these as explanatory variables, with the log-transformed time series sales data as the response variable. 
+
+Using these initializations, we first fit a multiple linear model with respect to time and month, which is superimposed as a red curve in the plot. 
+
+We also conduct model checking here to see if our model is a good fit for forecasting and prediction of future data. From the Normal QQ plot, we see that the residuals closely align with the diagonal, however we notice that this model is not perfect as there are clear deviations in the residuals on the left and right sides of the plot. This is also supported by the plot of the residuals, where the residuals above the horizontal abline at 0 are more spread out in contrast to the area below the abline where the residuals are closer together. In terms of the ACF plot of the residuals, we can conclude that this fitted regression model is stationary as the residuals approach 0 very rapidly within less than 10 lags.
+
+In the summary of the model, the adjusted R-squared is 0.9248 which indicates that the model accounts for roughly 92.5% of the variance in sales.
+
+The question is: Can we fit a better polynomial regression model? Will the new model have a better adjusted R-squared? We investigate this question in the next code chunk.
+```{r}
+tim = time(myts_sales)
+month = as.factor(cycle(myts_sales))
+lin_reg_ts = lm(log(myts_sales)~tim+month)
+summary(lin_reg_ts)
+
+plot(log(myts_sales), ylab = 'Sales in Thousands of Dollars', main = 'Linear Time Series Regression')
+points(tim, predict.lm(lin_reg_ts), type = 'l', col = 'red')
+
+plot(lin_reg_ts$fitted, lin_reg_ts$residuals) # plot of fitted values vs residuals 
+qqnorm(lin_reg_ts$residuals) #qq-plot of residuals
+qqline(lin_reg_ts$residuals) # plotting the line, along which the dots in qq-plot should lie 
+plot(lin_reg_ts$residuals) # plotting the residuals vs time
+abline(h=0,lty=2) # plotting a horizontal line at 0
+acf(lin_reg_ts$residuals)
+
+```
+Below, we now fit a polynomial regression model that consists of the same time and month variables with an added interaction term between time and month, defined as timmon. The blue plot represents the fitted model.
+
+The QQ plot indicates that the deviations of the residuals from the normal line is smaller as the residuals are closely aligning to the line, however similar to before we notice that the left and right extremes of the plot is where most of the deviations of the residuals occur. Now taking a look at the plot of the residuals, we notice that the residuals are better balanced above and below the abline at 0. The ACF plot for the interaction model is much better as not only do the ACF values approach 0 rapidly, it is also worthy to note that the majority of ACF values are within the blue dashed lines (95% confidence band). Hence we conclude that the stationarity of this fit is much stronger than the simple linear regression model, however it is not perfect. The adjusted R-squared for this model is 0.9376, so the interaction model accounts for 93.8% of the variance in sales. This increase in the R-squared tells us that this model is a much better fit for predictions and the model checking plots tell us that the model assumptions hold much better than the simple linear fit.
+
+To drive this point further with more evidence, we also provide the root mean square error along with the AIC and BIC values of both the simple linear and itneraction models. It is beneficial to note that the RMSE value for the interaction model is much smaller than the RMSE for the simple linear model, indicating less error between the actual data and the fitted model. The AIC and BIC values support this claim as they are much smaller for the interaction model than compared to the simple linear model. Therefore we conclude this analysis by indicating that the interaction model is better to use for predictions and forecasting than the simple linear model.
+```{r}
+
+timmon = tim*month
+int_reg_ts = lm(log(myts_sales)~tim+month+timmon)
+summary(int_reg_ts)
+
+plot(log(myts_sales), ylab = 'Sales in Thousands of Dollars', main = 'Interaction Term Time Series Regression')
+points(tim, predict.lm(int_reg_ts), type = 'l', col = 'blue')
+
+plot(int_reg_ts$fitted, int_reg_ts$residuals) # plot of fitted values vs residuals 
+qqnorm(int_reg_ts$residuals) #qq-plot of residuals
+qqline(int_reg_ts$residuals) # plotting the line, along which the dots in qq-plot should lie 
+plot(int_reg_ts$residuals) # plotting the residuals vs time
+abline(h=0,lty=2) # plotting a horizontal line at 0
+acf(int_reg_ts$residuals)
+
+rmse(lin_reg_ts, myts_sales)
+AIC(lin_reg_ts)
+BIC(lin_reg_ts)
+
+rmse(int_reg_ts, myts_sales)
+AIC(int_reg_ts)
+BIC(int_reg_ts)
+
+predict.lm(int_reg_ts)
+```
